@@ -36,10 +36,15 @@ export async function doctor(root: string): Promise<number> {
   const ok: string[] = [];
   const problems: string[] = [];
 
+  let opencodePresent = false;
+  let claudePresent = false;
   for (const cli of ["opencode", "claude"]) {
     const r = await run([cli, "--version"], 15000);
-    if (r.code === 0) ok.push(`${cli}: present (${r.out.split("\n")[0]})`);
-    else problems.push(`${cli}: could not run (exit ${r.code})`);
+    if (r.code === 0) {
+      ok.push(`${cli}: present (${r.out.split("\n")[0]})`);
+      if (cli === "opencode") opencodePresent = true;
+      else claudePresent = true;
+    } else problems.push(`${cli}: could not run (exit ${r.code})`);
   }
 
   let cfg: HarnessConfig | null = null;
@@ -68,9 +73,11 @@ export async function doctor(root: string): Promise<number> {
 
   if (cfg) {
     const seen = new Set<string>();
+    let claudeRoleCount = 0;
     for (const e of EFFORTS) {
       for (const r of ROLES) {
         const res = cfg.efforts[e][r];
+        if (res.tool === "claude") claudeRoleCount++;
         const key = `${res.tool}:${res.model}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -79,6 +86,15 @@ export async function doctor(root: string): Promise<number> {
         else ok.push(`efforts.${e}.${r}: ${res.tool} ${res.model} OK`);
       }
     }
+    const guidance: string[] = [];
+    if (claudeRoleCount && !claudePresent) {
+      guidance.push(
+        `config uses claude for ${claudeRoleCount} role mapping(s) but the 'claude' CLI is not available. ` +
+          `If you don't want to use Claude Code, set the roles you don't need to ` +
+          `tool: opencode in config.yaml (or override per step in the workflow).`,
+      );
+    }
+    for (const g of guidance) problems.push(g);
   }
 
   process.stdout.write("== harness doctor ==\n");

@@ -65,6 +65,54 @@ Freely editable via `config.yaml`. For `claude`, write aliases like `sonnet`/`op
 in the model field; for `opencode`, write `provider/model` (listed with
 `opencode models`).
 
+The shipped `config.yaml` is only the **default** — you decide which tools and
+models are used, or not used:
+
+- Roles that map to `claude` only run Claude Code if the `claude` CLI is
+  installed and configured. If you don't want Claude Code at all, point every
+  role at `opencode` and it is never invoked (no separate "disable" flag exists,
+  because you don't need one).
+- The same applies to `opencode`: nothing forces it — every role is freely
+  editable.
+- A workflow's steps reference **roles**, not tools, so changing `config.yaml`
+  is enough: you don't have to touch the workflows. You can still override
+  `tool`/`model` per step (see below).
+
+Two ready-to-paste examples (copy the whole `efforts:` block into your
+`config.yaml` — the rest of the file stays as shipped):
+
+**Only opencode — no Claude Code:**
+
+```yaml
+efforts:
+  medium:
+    orchestrator: { tool: opencode, model: opencode-go/deepseek-v4-flash, variant: medium }
+    architect:    { tool: opencode, model: opencode-go/deepseek-v4-flash, variant: high }
+    coder:        { tool: opencode, model: opencode-go/deepseek-v4-pro, variant: medium }
+  high:
+    orchestrator: { tool: opencode, model: opencode-go/deepseek-v4-flash, variant: high }
+    architect:    { tool: opencode, model: opencode-go/deepseek-v4-pro, variant: high }
+    coder:        { tool: opencode, model: opencode-go/deepseek-v4-pro, variant: high }
+```
+
+**Only Claude Code — no opencode:**
+
+```yaml
+efforts:
+  medium:
+    orchestrator: { tool: claude, model: sonnet, effort: medium }
+    architect:    { tool: claude, model: sonnet, effort: high }
+    coder:        { tool: claude, model: sonnet, effort: medium }
+  high:
+    orchestrator: { tool: claude, model: sonnet, effort: high }
+    architect:    { tool: claude, model: opus, effort: medium }
+    coder:        { tool: claude, model: opus, effort: high }
+```
+
+Note: each `efforts` entry (`medium` / `high`) **replaces** that whole bucket.
+If you only override `medium`, the `high` bucket keeps its defaults — so for a
+claude-free setup define both, and vice versa.
+
 ## Workflow file format
 
 `workflows/<ID>.yaml`:
@@ -91,7 +139,17 @@ Step fields:
 
 - `id` (required), `name` (optional)
 - `role`: `orchestrator` | `architect` | `coder`
-- `tool` / `model`: override the role mapping per step (optional)
+- `tool` / `model`: override the role mapping per step (optional). Example — run just
+  this one step on Claude Code while the rest of the workflow stays as configured:
+
+  ```yaml
+  - id: research
+    role: architect
+    tool: claude
+    model: haiku
+    prompt: |
+      Task: {{task}}
+  ```
 - `permission`: claude permission-mode (per step; default: coder→`acceptEdits`, others→`plan`)
 - `auto`: `--auto` for opencode (default: `true` for opencode + coder role)
 - `variant` / `effort`: per-step reasoning override (optional)

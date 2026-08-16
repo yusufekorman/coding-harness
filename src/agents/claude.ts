@@ -23,7 +23,25 @@ export async function runClaude(opts: AgentOptions): Promise<AgentResult> {
   if (opts.permission) args.push("--permission-mode", opts.permission);
   if (opts.system) args.push("--append-system-prompt", opts.system);
 
-  const proc = spawnCmdStdin(["claude", ...args]);
+  let proc: ReturnType<typeof spawnCmdStdin>;
+  try {
+    proc = spawnCmdStdin(["claude", ...args]);
+  } catch (e) {
+    const code = e instanceof Error && "code" in e ? String((e as { code?: unknown }).code) : undefined;
+    const detail = code && code !== "undefined" ? `(${code})` : "";
+    return {
+      ok: false,
+      output: "",
+      exitCode: 127,
+      interruption: {
+        kind: "error",
+        message:
+          `tool 'claude' could not be started${detail ? ` ${detail}` : ""}. ` +
+          `If you don't want to use Claude Code, set the roles you don't need to ` +
+          `tool: opencode in config.yaml (or override per step in the workflow).`,
+      },
+    };
+  }
 
   registerKill(() => {
     try {
