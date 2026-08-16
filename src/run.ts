@@ -150,9 +150,9 @@ export async function runWorkflow(
         const decision = await decidePermission(cfg, ctx, stepDef, ask);
         if (decision.reply) return decision.reply;
         if (decision.escalate) {
-          const msg = `İzin: ${ask.permission}${ask.patterns?.length ? " — " + ask.patterns.join(", ") : ""}`;
+          const msg = `Permission: ${ask.permission}${ask.patterns?.length ? " — " + ask.patterns.join(", ") : ""}`;
           const userAnswer = await hooks.ask(`${msg}\n[allow/deny]`);
-          if (/^a|^o|^y|^evet|^allow/i.test(userAnswer)) return "once";
+          if (/^a|^y|^yes|^ok|^allow/i.test(userAnswer)) return "once";
           return "reject";
         }
         return "reject";
@@ -201,32 +201,32 @@ export async function runWorkflow(
         case "answer":
         case "retry": {
           const note = decision.action === "answer" ? decision.response ?? "" : decision.instruction ?? "";
-          prompt = `${prompt}\n\n[${decision.action === "answer" ? "Sorunun cevabı" : "Ek talimat"}: ${note}]`;
+          prompt = `${prompt}\n\n[${decision.action === "answer" ? "Answer to question" : "Extra instruction"}: ${note}]`;
           retries++;
           break;
         }
         case "escalate": {
-          const question = decision.response ?? "Bu adımı nasıl ilerleteyim?";
+          const question = decision.response ?? "How should I proceed with this step?";
           const userAnswer = await hooks.ask(question);
           if (!userAnswer) {
-            throw new AbortError("kullanıcı boş bıraktı");
+            throw new AbortError("user left it empty");
           }
-          prompt = `${prompt}\n\n[Kullanıcı cevabı: ${userAnswer}]`;
+          prompt = `${prompt}\n\n[User answer: ${userAnswer}]`;
           retries++;
           break;
         }
         case "abort":
-          throw new AbortError("orkestratör abort etti");
+          throw new AbortError("orchestrator aborted");
       }
 
       if (!done && retries > maxRetries) {
         const userAnswer = await hooks.ask(
-          `"${stepDef.id}" adımı ${maxRetries} kez denendi ve bitmedi. Nasıl devam edeyim? (boş=abort)`,
+          `Step "${stepDef.id}" was retried ${maxRetries} times and didn't finish. How should I proceed? (empty=abort)`,
         );
         if (!userAnswer) {
-          throw new AbortError("kullanıcı boş bıraktı");
+          throw new AbortError("user left it empty");
         }
-        prompt = `${prompt}\n\n[Kullanıcı cevabı: ${userAnswer}]`;
+        prompt = `${prompt}\n\n[User answer: ${userAnswer}]`;
         retries = 0;
       }
     }

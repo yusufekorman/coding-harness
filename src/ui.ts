@@ -12,7 +12,7 @@ export async function ask(question: string): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     const answer = await rl.question(
-      `\n[harness] SORU: ${question}\n[harness] Cevabın (boş bırakırsan abort): `,
+      `\n[harness] QUESTION: ${question}\n[harness] Your answer (leave empty to abort): `,
     );
     return answer.trim();
   } finally {

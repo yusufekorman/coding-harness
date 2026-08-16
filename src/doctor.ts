@@ -23,13 +23,13 @@ const CLAUDE_ALIASES = new Set(["sonnet", "opus", "haiku", "fable"]);
 function checkModel(tool: string, model: string, opencodeModels: Set<string>): string | null {
   if (tool === "opencode") {
     if (opencodeModels.has(model)) return null;
-    return `opencode modeli bulunamadı: ${model}`;
+    return `opencode model not found: ${model}`;
   }
   if (tool === "claude") {
     if (CLAUDE_ALIASES.has(model) || model.startsWith("claude-")) return null;
-    return `claude model alias'ı tanınmıyor: ${model} (${[...CLAUDE_ALIASES].join("|")} veya claude-*)`;
+    return `unknown claude model alias: ${model} (${[...CLAUDE_ALIASES].join("|")} or claude-*)`;
   }
-  return `bilinmeyen tool: ${tool}`;
+  return `unknown tool: ${tool}`;
 }
 
 export async function doctor(root: string): Promise<number> {
@@ -38,14 +38,14 @@ export async function doctor(root: string): Promise<number> {
 
   for (const cli of ["opencode", "claude"]) {
     const r = await run([cli, "--version"], 15000);
-    if (r.code === 0) ok.push(`${cli}: mevcut (${r.out.split("\n")[0]})`);
-    else problems.push(`${cli}: çalıştırılamadı (exit ${r.code})`);
+    if (r.code === 0) ok.push(`${cli}: present (${r.out.split("\n")[0]})`);
+    else problems.push(`${cli}: could not run (exit ${r.code})`);
   }
 
   let cfg: HarnessConfig | null = null;
   try {
     cfg = await loadConfig(root);
-    ok.push("config.yaml: geçerli");
+    ok.push("config.yaml: valid");
   } catch (e) {
     problems.push(`config.yaml: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -53,7 +53,7 @@ export async function doctor(root: string): Promise<number> {
   for (const wf of ["FIX", "FEATURE", "ASK"]) {
     try {
       await loadWorkflow(root, wf);
-      ok.push(`workflow ${wf}: geçerli`);
+      ok.push(`workflow ${wf}: valid`);
     } catch (e) {
       problems.push(`workflow ${wf}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -84,7 +84,7 @@ export async function doctor(root: string): Promise<number> {
   process.stdout.write("== harness doctor ==\n");
   for (const o of ok) process.stdout.write(`  [OK] ${o}\n`);
   for (const p of problems) process.stdout.write(`  [!!] ${p}\n`);
-  process.stdout.write(problems.length ? "Sonuç: sorunlar var\n" : "Sonuç: her şey hazır\n");
+  process.stdout.write(problems.length ? "Result: problems found\n" : "Result: all good\n");
 
   return problems.length ? 1 : 0;
 }

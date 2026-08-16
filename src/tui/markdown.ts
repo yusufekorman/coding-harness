@@ -1,43 +1,43 @@
 import { stripAnsi } from "./term";
 
 /**
- * Markdown'ı düz terminal metnine çevirir (kalın, başlık, liste, link, inline code,
- * code fence vb. sözdizimini temizler). ANSI eklemez; renklendirme çağıran tarafta.
+ * Converts Markdown to plain terminal text (strips bold, headings, lists, links,
+ * inline code, code fences, etc.). Does not add ANSI; coloring is up to the caller.
  */
 export function mdToText(md: string): string {
   let t = md;
-  // code fence satırları
+  // code fence lines
   t = t.replace(/^```[^\n]*$/gm, "");
   t = t.replace(/^~~~[^\n]*$/gm, "");
-  // satır ortasında kalan fence işaretleri
+  // leftover fence markers mid-line
   t = t.replace(/```[a-zA-Z0-9_-]*/g, "");
   t = t.replace(/~~~/g, "");
-  // başlıklar
+  // headings
   t = t.replace(/^#{1,6}[ \t]+/gm, "");
   // blockquote
   t = t.replace(/^>[ \t]?/gm, "");
-  // yatay çizgiler (---, ***, ___)
+  // horizontal rules (---, ***, ___)
   t = t.replace(/^[ \t]*([-*_])([ \t]*\1){2,}[ \t]*$/gm, "");
-  // kalın
+  // bold
   t = t.replace(/\*\*([^*\n]+)\*\*/g, "$1");
-  // görseller ve linkler
+  // images and links
   t = t.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1");
   t = t.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
   // inline code
   t = t.replace(/`([^`\n]+)`/g, "$1");
-  // italik (boşluklu `a * b` ifadelerine dokunma)
+  // italics (leave spaced `a * b` expressions alone)
   t = t.replace(/(^|[^*])\*([^*\s][^*\n]*)\*(?!\*)/g, "$1$2");
-  // listeler
+  // lists
   t = t.replace(/^([ \t]*)[-*+][ \t]+/gm, "$1• ");
   t = t.replace(/^([ \t]*)\d+[.)][ \t]+/gm, "$1");
-  // fazla boş satırları sıkıştır
+  // collapse excess blank lines
   t = t.replace(/\n{3,}/g, "\n\n");
   return t.trimEnd();
 }
 
 /**
- * Metni belirtilen görünür genişliğe satır satır sarar; aşırı uzun tek parçaları
- * (URL, hash vb.) zorla böler.
+ * Wraps text line by line to the given visible width; forces breaks in overly long
+ * single tokens (URL, hash, etc.).
  */
 export function wrap(text: string, width: number): string[] {
   const w = Math.max(10, width);

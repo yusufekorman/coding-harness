@@ -12,9 +12,9 @@ export interface RoleResolution {
 }
 
 export interface SafetyConfig {
-  /** yazma yetkili adımların bu dizinler içinde çalışmasını engelle */
+  /** block write-capable steps from running inside these directories */
   protectedDirs: string[];
-  /** false iken coder adımı --auto olmadan çalışır (yazmalar denial'a düşer) */
+  /** when false, the coder step runs without --auto (writes fall to denial) */
   autoApprove: boolean;
 }
 
@@ -24,7 +24,7 @@ export interface HarnessConfig {
   maxTransientRetries?: number;
   transientBackoffMs?: number;
   safety?: SafetyConfig;
-  /** kategori bazlı izin politikası (opencode): read/edit/bash/webfetch/... -> allow|ask|deny */
+  /** per-category permission policy (opencode): read/edit/bash/webfetch/... -> allow|ask|deny */
   permissions?: Record<string, "allow" | "deny" | "ask">;
   efforts: Record<Effort, Record<Role, RoleResolution>>;
 }
@@ -64,9 +64,9 @@ export interface AgentResult {
   output: string;
   exitCode: number;
   interruption?: Interruption;
-  /** toplam maliyet (USD), biliniyorsa */
+  /** total cost (USD), if known */
   costUsd?: number;
-  /** toplam token sayısı, biliniyorsa */
+  /** total token count, if known */
   tokens?: number;
 }
 

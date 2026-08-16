@@ -33,7 +33,7 @@ export function acquireLock(): () => void {
         /* ignore */
       }
     } else {
-      throw new Error(`başka bir harness çalışıyor (${lockPath}). Bekleyin veya kilidi kaldırın.`);
+      throw new Error(`another harness is already running (${lockPath}). Wait or remove the lock.`);
     }
   }
 

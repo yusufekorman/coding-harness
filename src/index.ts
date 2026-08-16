@@ -16,28 +16,28 @@ import { doctor } from "./doctor";
 const WORKFLOW_IDS = new Set(["FIX", "FEATURE", "ASK"]);
 
 function printHelp(): void {
-  process.stdout.write(`Coding Harness — opencode / Claude Code workflow orkestratörü
+  process.stdout.write(`Coding Harness — opencode / Claude Code workflow orchestrator
 
-Kullanım:
-  harness .                          → etkileşimli TUI (geçerli dizinde çalışır)
-  harness <dizin>                    → TUI, belirtilen dizinde çalışır
-  harness <WORKFLOW> "görev" [...]   → headless çalıştır (FIX | FEATURE | ASK)
-  harness --resume <runId>           → kaldığı yerden devam et
-  harness --doctor                   → ortam/config/model kontrolü
-  harness --runs                     → son çalıştırmaları listele
+Usage:
+  harness .                          → interactive TUI (runs in the current directory)
+  harness <dir>                      → TUI, runs in the specified directory
+  harness <WORKFLOW> "task" [...]    → run headless (FIX | FEATURE | ASK)
+  harness --resume <runId>           → resume from where it left off
+  harness --doctor                   → validate environment/config/models
+  harness --runs                     → list recent runs
 
-Seçenekler:
-  --effort medium|high   headless modda rol/model matrisini seçer (varsayılan medium)
-  --dir <dizin>          ajanların çalışacağı proje dizini
-  --ascii                TUI'de saf ASCII çizim (unicode yerine)
-  --verbose, -v          headless modda ajan çıktısını akıt
-  -V, --version          sürüm
-  -h, --help             yardım
+Options:
+  --effort medium|high   select the role/model matrix in headless mode (default medium)
+  --dir <dir>            project directory the agents work in
+  --ascii                pure ASCII drawing in the TUI (instead of unicode)
+  --verbose, -v          stream agent output in headless mode
+  -V, --version          version
+  -h, --help             help
 
-Örnekler:
+Examples:
   harness .
-  harness FIX "login hatasını düzelt" --effort high
-  harness ASK "bu proje hangi auth yöntemini kullanıyor?"
+  harness FIX "fix the login bug" --effort high
+  harness ASK "which auth method does this project use?"
   harness --resume 2026-08-16T10-00-00-123Z-fix
 `);
 }
@@ -71,10 +71,10 @@ function listRuns(): void {
       .reverse()
       .slice(0, 20);
   } catch {
-    /* dir yok */
+    /* no dir */
   }
   if (!names.length) {
-    process.stdout.write("(kayıtlı çalıştırma yok)\n");
+    process.stdout.write("(no saved runs)\n");
     return;
   }
   for (const n of names) process.stdout.write(`${n}\n`);
@@ -126,7 +126,7 @@ async function runAndLog(
   const finalText = values[lastStep.captures ?? lastStep.id] ?? "";
   logger.finalize(finalText);
 
-  log("\ntamamlandı. Son adım çıktısı:");
+  log("\ncompleted. Final step output:");
   process.stdout.write(`\n${finalText}\n`);
   log(`run log: ${runDir}`);
   return values;
@@ -156,7 +156,7 @@ async function resumeRun(root: string, runId: string): Promise<void> {
   const runDir = runId.startsWith("/") || runId.startsWith("./") ? runId : join(runsDir(), runId);
   const state = await readState(runDir);
   if (!state) {
-    log(`resume state bulunamadı: ${runDir}`);
+    log(`resume state not found: ${runDir}`);
     process.exit(1);
   }
   const cfg = await loadConfig(root);
@@ -170,7 +170,7 @@ async function resumeRun(root: string, runId: string): Promise<void> {
     values: state.values,
   };
 
-  log(`resume: ${workflow.id} | adım ${Math.min(state.stepIndex + 1, workflow.steps.length)}/${workflow.steps.length} | ${state.task}`);
+  log(`resume: ${workflow.id} | step ${Math.min(state.stepIndex + 1, workflow.steps.length)}/${workflow.steps.length} | ${state.task}`);
   await runAndLog(cfg, ctx, logger, runDir, state.stepIndex, false);
 }
 
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
     const wfId = String(positionals[0]).toUpperCase();
     const task = positionals.slice(1).join(" ").trim();
     if (!task) {
-      log(`Görev açıklaması gerekli. Örn: harness FIX "şu hatayı düzelt"`);
+      log(`Task description is required. E.g. harness FIX "fix this bug"`);
       process.exit(1);
     }
 
@@ -239,7 +239,7 @@ async function main(): Promise<void> {
     const cfg = await loadConfig(root);
     const effort = (values.effort ?? cfg.defaultEffort ?? "medium") as Effort;
     if (!EFFORTS.includes(effort)) {
-      log(`Geçersiz effort: ${effort} (${EFFORTS.join("|")})`);
+      log(`Invalid effort: ${effort} (${EFFORTS.join("|")})`);
       process.exit(1);
     }
 
@@ -255,6 +255,6 @@ process.on("exit", () => {
 });
 
 main().catch((err) => {
-  log(`hata: ${err instanceof Error ? err.message : String(err)}`);
+  log(`error: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 });

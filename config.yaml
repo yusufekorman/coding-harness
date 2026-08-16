@@ -1,8 +1,8 @@
-# Rol -> model -> effort çözümleme matrisi.
-# role: orchestrator (karar), architect (mimari/UI), coder (kod yazma)
+# Role -> model -> effort resolution matrix.
+# role: orchestrator (decisions), architect (architecture/UI), coder (writing code)
 # tool: opencode | claude
-# claude için: effort  -> --effort (low|medium|high|xhigh|max)
-# opencode için: variant -> --variant (minimal|low|medium|high|max)
+# for claude: effort  -> --effort (low|medium|high|xhigh|max)
+# for opencode: variant -> --variant (minimal|low|medium|high|max)
 
 defaultEffort: medium
 maxRetries: 3
@@ -10,9 +10,9 @@ maxTransientRetries: 3
 transientBackoffMs: 2000
 
 safety:
-  # false: tüm izin kategorileri "ask" olur (hiçbir şey otomatik onaylanmaz)
+  # false: every permission category becomes "ask" (nothing is auto-approved)
   autoApprove: true
-  # yazma yetkili adımların çalışması engellenen dizinler ($HOME yalnızca birebir eşleşmede korunur)
+  # directories where write-capable steps are blocked ($HOME is only protected on an exact match)
   protectedDirs:
     - $HOME
     - /
@@ -25,7 +25,7 @@ safety:
     - /proc
     - /sys
 
-# opencode kategori bazlı izin politikası: allow (otomatik) | ask (orkestratör/kullanıcı) | deny
+# opencode per-category permission policy: allow (automatic) | ask (orchestrator/user) | deny
 permissions:
   read: allow
   edit: allow

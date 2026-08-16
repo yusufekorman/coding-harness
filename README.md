@@ -1,69 +1,71 @@
 # Coding Harness
 
-`opencode` ve `claude` (Claude Code) araçlarını arka planda headless çalıştırıp, kendi
-yazdığın workflow'ları adım adım uygulayan bir orkestratör.
+An orchestrator that runs `opencode` and `claude` (Claude Code) headless in the
+background and executes your own workflows step by step.
 
-Sen sadece hangi workflow'un kullanılacağını söylersin: `FIX`, `FEATURE`, `ASK`.
-Bir adımda interruption (hata / izin reddi / soru) olursa önce **orkestratör LLM** karar
-verir; o da karar veremezse sana sorar.
+You only say which workflow to use: `FIX`, `FEATURE`, or `ASK`. When a step hits an
+interruption (error / permission denied / question), the **orchestrator LLM** decides
+first; if it cannot decide, it escalates to you.
 
-## Kurulum
+## Installation
 
 ```bash
 bun install
-ln -s "$PWD/src/index.ts" ~/.local/bin/harness   # global komut (PATH'te olmalı)
+ln -s "$PWD/src/index.ts" ~/.local/bin/harness   # global command (must be on PATH)
 ```
 
-## Kullanım
+## Usage
 
-### TUI (etkileşimli)
+### TUI (interactive)
 
 ```bash
-harness .        # çalışacağın dizinde
-harness /proje   # ya da belirli bir dizinde
+harness .        # in the directory you want to work in
+harness /project # or in a specific directory
 ```
 
-TUI içinde sırayla **workflow** (FIX/FEATURE/ASK), **effort** (medium/high) ve **görev**
-seçilir; ardından adımlar canlı akan çıktıyla çalışır. Escalation durumunda soru TUI
-içinde sorulur. `q` ile çıkılır.
+Inside the TUI you pick a **workflow** (FIX/FEATURE/ASK), an **effort** level
+(medium/high), and a **task** in sequence; the steps then run with live streaming
+output. On escalation, the question is asked inside the TUI. Press `q` to quit.
 
 ### Headless
 
 ```bash
-harness FIX "login hatasını düzelt" --effort high
-harness FEATURE "kullanıcı profili sayfası ekle"
-harness ASK "bu proje hangi auth yöntemini kullanıyor?"
+harness FIX "fix the login bug" --effort high
+harness FEATURE "add a user profile page"
+harness ASK "which auth method does this project use?"
 ```
 
-- `--effort medium|high` (varsayılan `medium`) — `config.yaml` içindeki rol/model matrisini seçer.
-- `--dir <path>` — ajanların çalışacağı proje dizini (varsayılan: geçerli dizin).
-- `--verbose, -v` — headless modda ajan çıktısını akıt.
-- `--ascii` — TUI'de saf ASCII çizim (unicode yerine).
+- `--effort medium|high` (default `medium`) — selects the role/model matrix in
+  `config.yaml`.
+- `--dir <path>` — the project directory the agents work in (default: current dir).
+- `--verbose, -v` — stream agent output in headless mode.
+- `--ascii` — pure ASCII drawing in the TUI (instead of unicode).
 
-## Akış
+## Flow
 
-1. Workflow yüklenir (`workflows/<ID>.yaml`).
-2. Her adım, rolüne göre bir ajanla headless çalıştırılır.
-3. Adım sonucunda interruption varsa (veya `review: true` ise) **orkestratör** devreye girer:
-   - `complete` — sonraki adıma geç
-   - `answer` — ajanın sorusuna orkestratör cevap verir, adım tekrar çalışır
-   - `retry` — ek talimatla adım tekrar çalışır
-   - `escalate` — sana sorulur, cevabın geri beslenir
-   - `abort` — durdur
+1. The workflow is loaded (`workflows/<ID>.yaml`).
+2. Each step runs headless with an agent matching its role.
+3. If a step ends with an interruption (or `review: true`), the **orchestrator**
+   takes over:
+   - `complete` — move to the next step
+   - `answer` — the orchestrator answers the agent's question, the step re-runs
+   - `retry` — the step re-runs with extra instructions
+   - `escalate` — you are asked, and your answer is fed back
+   - `abort` — stop
 
-## Roller ve modeller (`config.yaml`)
+## Roles and models (`config.yaml`)
 
-| rol          | görev               | medium                    | high                        |
-|--------------|---------------------|---------------------------|-----------------------------|
-| orchestrator | karar mekanizması   | opencode deepseek flash (variant medium) | opencode deepseek flash (variant high) |
-| architect    | mimari / UI tasarımı| claude sonnet (effort high)| claude opus (effort medium) |
-| coder        | kod yazma           | opencode deepseek pro (variant medium)  | opencode deepseek pro (variant high) |
+| role         | purpose             | medium                       | high                         |
+|--------------|---------------------|------------------------------|------------------------------|
+| orchestrator | decision mechanism  | opencode deepseek flash (variant medium) | opencode deepseek flash (variant high) |
+| architect    | architecture / UI   | claude sonnet (effort high)  | claude opus (effort medium)  |
+| coder        | writing code        | opencode deepseek pro (variant medium) | opencode deepseek pro (variant high) |
 
-`config.yaml` içinden serbestçe düzenlenebilir. `claude` model alanına `sonnet`/`opus`
-gibi takma adlar, `opencode` model alanına `provider/model` biçimi yazılır
-(`opencode models` ile listelenir).
+Freely editable via `config.yaml`. For `claude`, write aliases like `sonnet`/`opus`
+in the model field; for `opencode`, write `provider/model` (listed with
+`opencode models`).
 
-## Workflow dosya biçimi
+## Workflow file format
 
 `workflows/<ID>.yaml`:
 
@@ -75,76 +77,77 @@ steps:
     role: architect          # orchestrator | architect | coder
     permission: plan         # claude: plan|acceptEdits|dontAsk|bypassPermissions
     prompt: |
-      Görev: {{task}}
-      Çalışma dizini: {{workdir}}
+      Task: {{task}}
+      Working directory: {{workdir}}
   - id: implement
     role: coder
     auto: true               # opencode --auto
     prompt: |
-      Analiz: {{context.understand}}
-      Görev: {{task}}
+      Analysis: {{context.understand}}
+      Task: {{task}}
 ```
 
-Adım alanları:
+Step fields:
 
-- `id` (zorunlu), `name` (opsiyonel)
+- `id` (required), `name` (optional)
 - `role`: `orchestrator` | `architect` | `coder`
-- `tool` / `model`: rol eşlemesini adım bazında ezmek için (opsiyonel)
-- `permission`: claude permission-mode (adım bazında; varsayılan: coder→`acceptEdits`, diğerleri→`plan`)
-- `auto`: opencode için `--auto` (varsayılan: opencode + coder rolünde `true`)
-- `variant` / `effort`: adım bazında reasoning override (opsiyonel)
-- `prompt`: şablon; değişkenler `{{task}}`, `{{workdir}}`, `{{effort}}`, `{{context.<stepId>}}`
-- `captures`: çıktının context'e hangi anahtarla kaydedileceği (varsayılan `id`)
-- `review`: orkestratör bu adımın sonucunu değerlendirsin mi (varsayılan `true`)
-- `system`: ajan için ek sistem yönergesi (opsiyonel)
+- `tool` / `model`: override the role mapping per step (optional)
+- `permission`: claude permission-mode (per step; default: coder→`acceptEdits`, others→`plan`)
+- `auto`: `--auto` for opencode (default: `true` for opencode + coder role)
+- `variant` / `effort`: per-step reasoning override (optional)
+- `prompt`: template; variables `{{task}}`, `{{workdir}}`, `{{effort}}`, `{{context.<stepId>}}`
+- `captures`: the key the step output is stored under in context (default: `id`)
+- `review`: whether the orchestrator evaluates this step's result (default `true`)
+- `system`: extra system prompt for the agent (optional)
 
-## Ortam değişkenleri
+## Environment variables
 
-- `HARNESS_STEP_TIMEOUT_MS` — adım başına zaman aşımı (varsayılan 15 dk).
-- `HARNESS_LOG_DIR` — çalıştırma log dizini (varsayılan `~/.local/state/harness/runs`).
-- `HARNESS_LOCK_DIR` — kilit dizini (varsayılan `~/.cache/harness`).
+- `HARNESS_STEP_TIMEOUT_MS` — per-step timeout (default 15 min).
+- `HARNESS_LOG_DIR` — run log directory (default `~/.local/state/harness/runs`).
+- `HARNESS_LOCK_DIR` — lock directory (default `~/.cache/harness`).
 
-## Yönetim komutları
+## Management commands
 
 ```bash
-harness --doctor            # ortam/config/model doğrulaması
-harness --runs              # son çalıştırmaları listele
-harness --resume <runId>    # kaldığı adımdan devam et
-harness --version           # sürüm
+harness --doctor            # validate environment/config/models
+harness --runs              # list recent runs
+harness --resume <runId>    # resume from the step it left off
+harness --version           # version
 ```
 
-## Güvenlik
+## Safety
 
 `config.yaml` → `safety`:
 
-- `autoApprove` (varsayılan `true`): `false` iken tüm izin kategorileri `ask` olur
-  (hiçbir şey otomatik onaylanmaz, her şey orkestratöre/kullanıcıya sorulur).
-- `protectedDirs`: yazma yetkili adımların çalışması engellenen dizinler. `$HOME` yalnızca
-  birebir eşleşmede korunur (alt proje dizinleri serbesttir).
+- `autoApprove` (default `true`): when `false`, every permission category becomes `ask`
+  (nothing is auto-approved; everything is asked of the orchestrator/user).
+- `protectedDirs`: directories where write-capable steps are blocked. `$HOME` is only
+  protected on an exact match (subproject directories remain free).
 
-`config.yaml` → `permissions` (opencode, kategori bazlı):
+`config.yaml` → `permissions` (opencode, per category):
 
-- `allow` — otomatik onayla, `ask` — orkestratöre/kullanıcıya sor, `deny` — reddet.
-- Kategoriler: `read`, `edit`, `bash`, `webfetch`, `external_directory`, `doom_loop`,
+- `allow` — auto-approve, `ask` — ask orchestrator/user, `deny` — reject.
+- Categories: `read`, `edit`, `bash`, `webfetch`, `external_directory`, `doom_loop`,
   `question`, `task`, `glob`, `grep`, `lsp`, `todowrite`, `codesearch`, `websearch`, `list`.
 
-Ayrıca: yalnızca tek bir harness aynı anda çalışır (lock dosyası), ajan süreçleri yeni bir
-process grubunda koşar (timeout/abort'ta tüm ağaç öldürülür), ve transient (çıktısız) hatalar
-exponential backoff ile yeniden denenir.
+Also: only one harness runs at a time (lock file), agent processes run in a new process
+group (the whole tree is killed on timeout/abort), and transient (no-output) errors are
+retried with exponential backoff.
 
-## Gözlenebilirlik
+## Observability
 
-Her çalıştırma `<logdir>/<ts>-<workflow>/` altında şunları yazar:
+Each run writes the following under `<logdir>/<ts>-<workflow>/`:
 
-- `run.jsonl` — yapılandırılmış olay akışı (adım, karar, maliyet, token, süre)
-- `log.txt` — insan-okunur log (sırlar maskelenir)
-- `final.md` — son rapor
-- `state.json` — resume için context + tamamlanan adım sayısı
+- `run.jsonl` — structured event stream (step, decision, cost, tokens, duration)
+- `log.txt` — human-readable log (secrets are masked)
+- `final.md` — final report
+- `state.json` — context + completed step count for resume
 
-## Tam kapasite: canlı soru & izin
+## Full capability: live questions & permissions
 
-- **Claude** (stdin full-duplex): `--brief` + `SendUserMessage` aynı session'da yakalanıp
-  orkestratör/kullanıcı cevabı `tool_result` olarak geri yazılır (re-run yok).
-- **opencode** (SDK, `@opencode-ai/sdk`): `question.asked`/`permission.asked` event'leri aynı
-  session'da `question.reply`/`permission.reply` ile canlı yanıtlanır; izin politikası
-  `config.yaml → permissions` ile uygulanır. `variant` (reasoning effort) SDK üzerinden geçer.
+- **Claude** (stdin full-duplex): `--brief` + `SendUserMessage` are caught in the same
+  session and the orchestrator/user answer is written back as `tool_result` (no re-run).
+- **opencode** (SDK, `@opencode-ai/sdk`): `question.asked`/`permission.asked` events are
+  answered live in the same session via `question.reply`/`permission.reply`; the
+  permission policy is applied from `config.yaml → permissions`. `variant` (reasoning
+  effort) is passed through the SDK.

@@ -31,13 +31,13 @@ export interface AgentOptions {
   permission?: string;
   auto?: boolean;
   system?: string;
-  /** kategori bazlı izin politikası (opencode native ruleset için) */
+  /** per-category permission policy (for the opencode native ruleset) */
   permissions?: Record<string, "allow" | "deny" | "ask">;
-  /** canlı akan metin (TUI logu için) */
+  /** live streamed text (for the TUI log) */
   onText?: (chunk: string) => void;
-  /** ajan soru sorduğunda — canlı, aynı session; dönen cevaplar geri yazılır (null = reddet) */
+  /** when the agent asks a question — live, same session; returned answers are written back (null = reject) */
   onQuestion?: (ask: QuestionAsk) => Promise<string[] | null>;
-  /** ajan izin istediğinde — canlı; reply geri yazılır */
+  /** when the agent requests permission — live; the reply is written back */
   onPermission?: (ask: PermissionAsk) => Promise<PermissionReply>;
 }
 
@@ -88,7 +88,7 @@ export function abortCurrent(): void {
   }
 }
 
-/** Linux'ta child'ı yeni bir process grubuna al (setsid) — timeout/abort'ta tüm ağacı öldürebilmek için */
+/** put the child in a new process group on Linux (setsid) — so the whole tree can be killed on timeout/abort */
 export function spawnCmd(cmd: string[]): Subprocess<"ignore", "pipe", "pipe"> {
   return Bun.spawn({
     cmd: ["setsid", ...cmd],
@@ -98,7 +98,7 @@ export function spawnCmd(cmd: string[]): Subprocess<"ignore", "pipe", "pipe"> {
   });
 }
 
-/** setsid + stdin açık (claude full-duplex stream-json için) */
+/** setsid + stdin open (for claude full-duplex stream-json) */
 export function spawnCmdStdin(cmd: string[]): Subprocess<"pipe", "pipe", "pipe"> {
   return Bun.spawn({
     cmd: ["setsid", ...cmd],

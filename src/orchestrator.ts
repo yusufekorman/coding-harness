@@ -7,10 +7,10 @@ const MAX_CONTEXT = 6000;
 
 function truncate(s: string, n = MAX_CONTEXT): string {
   if (s.length <= n) return s;
-  return s.slice(0, n) + "\n...[kesildi]";
+  return s.slice(0, n) + "\n...[truncated]";
 }
 
-/** Orkestratörün kendi karar çağrısı: araç kullanmasın, ask/izin asmasın */
+/** The orchestrator's own decision call: no tool use, no ask/permission hangs */
 function decisionAgentOpts(cfg: HarnessConfig, ctx: StepContext, prompt: string): AgentOptions {
   const role = resolveRole(cfg, ctx.effort, "orchestrator");
   return {
@@ -49,41 +49,41 @@ function buildPrompt(
   retriesUsed: number,
 ): string {
   const lines = [
-    "Sen bir görev orkestratörüsün. Bir kodlama workflow'unun adımı yürütüldü; sonucu değerlendir ve tek bir JSON karar nesnesi döndür.",
+    "You are a task orchestrator. A step of a coding workflow has run; evaluate the result and return a single JSON decision object.",
     "",
-    `Orijinal görev: ${ctx.task}`,
-    `Mevcut adım: ${step.id}${step.name ? " — " + step.name : ""}`,
-    `Adım talimatı: ${step.prompt}`,
+    `Original task: ${ctx.task}`,
+    `Current step: ${step.id}${step.name ? " — " + step.name : ""}`,
+    `Step instruction: ${step.prompt}`,
     "",
-    "Ajan çıktısı:",
+    "Agent output:",
     "---",
-    truncate(output || "(boş)"),
+    truncate(output || "(empty)"),
     "---",
   ];
 
   if (interruption) {
-    lines.push("", `Tespit edilen interruption: ${interruption.kind} — ${truncate(interruption.message, 1000)}`);
+    lines.push("", `Detected interruption: ${interruption.kind} — ${truncate(interruption.message, 1000)}`);
   }
 
   lines.push(
     "",
-    `Bu adım için kullanılan tekrar sayısı: ${retriesUsed}`,
+    `Retries used for this step: ${retriesUsed}`,
     "",
-    "Sadece şu JSON'u döndür (başka metin yazma, araç kullanma):",
+    "Return only this JSON (write no other text, use no tools):",
     JSON.stringify({
       action: "complete | answer | retry | escalate | abort",
-      response: "answer için: ajanın sorusuna verilecek cevap; escalate için: kullanıcıya sorulacak soru",
-      instruction: "retry için: ajanın adımı tekrar yaparken izleyeceği ek talimat",
-      reason: "kısa gerekçe",
+      response: "for answer: the answer to the agent's question; for escalate: the question to ask the user",
+      instruction: "for retry: extra instructions for the agent to follow when redoing the step",
+      reason: "short reason",
     }),
     "",
-    "Kurallar:",
-    "- Adım başarıyla tamamlandıysa action=complete.",
-    "- Ajan bir soru sorduysa veya eksik bilgi varsa ve cevabı biliyorsan action=answer (response=cevap).",
-    "- Cevabı sen de bilmiyorsan ve gerçekten kullanıcıya sorulması gerekiyorsa action=escalate (response=soru).",
-    "- Adım başarısızsa ya da farklı yaklaşım gerekiyorsa action=retry (instruction=talimat).",
-    "- Görev imkânsızsa action=abort.",
-    "- Sadece gerektiğinde escalate et; kolay kararlar için answer/retry kullan.",
+    "Rules:",
+    "- If the step completed successfully, action=complete.",
+    "- If the agent asked a question or information is missing and you know the answer, action=answer (response=answer).",
+    "- If you don't know the answer either and the user genuinely needs to be asked, action=escalate (response=question).",
+    "- If the step failed or a different approach is needed, action=retry (instruction=instruction).",
+    "- If the task is impossible, action=abort.",
+    "- Only escalate when necessary; use answer/retry for easy decisions.",
   );
   return lines.join("\n");
 }
@@ -105,11 +105,11 @@ function parseDecision(text: string): Decision {
   const lower = text.toLowerCase();
   if (lower.includes("abort")) return { action: "abort" };
   if (lower.includes("escalate")) return { action: "escalate", response: text };
-  // Karar JSON'u üretilemedi -> sessizce "tamamlandı" demek tehlikeli; kullanıcıya ilet.
+  // Decision JSON could not be produced -> silently saying "completed" is dangerous; relay to the user.
   return {
     action: "escalate",
-    response: `Orkestratör karar üretemedi. Ham çıktı:\n${text.trim() || "(boş)"}`,
-    reason: "karar parse edilemedi",
+    response: `Orchestrator could not produce a decision. Raw output:\n${text.trim() || "(empty)"}`,
+    reason: "decision could not be parsed",
   };
 }
 
@@ -127,8 +127,8 @@ export async function decide(
   if (!result.output.trim() || result.interruption) {
     return {
       action: "escalate",
-      response: `Orkestratör ajan hata verdi: ${result.interruption?.message ?? "boş çıktı"}`,
-      reason: "orkestratör hata verdi",
+      response: `Orchestrator agent errored: ${result.interruption?.message ?? "empty output"}`,
+      reason: "orchestrator errored",
     };
   }
 
@@ -148,21 +148,21 @@ export async function decidePermission(
   ask: PermissionAsk,
 ): Promise<PermissionDecision> {
   const prompt = [
-    "Sen bir görev orkestratörüsün. Bir kodlama ajanı bir izin istiyor. İzni değerlendir ve tek bir JSON nesnesi döndür.",
+    "You are a task orchestrator. A coding agent is requesting a permission. Evaluate it and return a single JSON object.",
     "",
-    `Orijinal görev: ${ctx.task}`,
-    `Mevcut adım: ${step.id}${step.name ? " — " + step.name : ""}`,
-    `İzin tipi: ${ask.permission}`,
-    `Kalıplar: ${truncate((ask.patterns ?? []).join(", ") || "(yok)", 500)}`,
+    `Original task: ${ctx.task}`,
+    `Current step: ${step.id}${step.name ? " — " + step.name : ""}`,
+    `Permission type: ${ask.permission}`,
+    `Patterns: ${truncate((ask.patterns ?? []).join(", ") || "(none)", 500)}`,
     "",
-    "Sadece şu JSON'u döndür (araç kullanma):",
-    JSON.stringify({ reply: "once | always | reject", reason: "kısa gerekçe" }),
-    'ya da emin değilsen: {"escalate": true, "question": "kullanıcıya sorulacak soru"}',
+    "Return only this JSON (use no tools):",
+    JSON.stringify({ reply: "once | always | reject", reason: "short reason" }),
+    'or if unsure: {"escalate": true, "question": "question to ask the user"}',
     "",
-    "Kurallar:",
-    "- Güvenli/rutin bir izinse reply=once (veya her zaman için always).",
-    "- Riskli/yıkıcı ise reply=reject.",
-    "- Karar veremiyorsan escalate et.",
+    "Rules:",
+    "- If it's a safe/routine permission, reply=once (or always for permanent).",
+    "- If risky/destructive, reply=reject.",
+    "- If you can't decide, escalate.",
   ].join("\n");
 
   const result = await runAgent(decisionAgentOpts(cfg, ctx, prompt));
@@ -174,8 +174,8 @@ export async function decidePermission(
   if (json && ["once", "always", "reject"].includes(String(json.reply))) {
     return { reply: String(json.reply) as PermissionReply };
   }
-  // bilinmiyorsa güvenli tarafta kal: reddet yerine kullanıcıya ilet
-  return { escalate: true, question: `İzin isteği (${ask.permission}): ${(ask.patterns ?? []).join(", ")} — izin verilsin mi?` };
+  // if unknown, err on the safe side: relay to the user instead of rejecting
+  return { escalate: true, question: `Permission request (${ask.permission}): ${(ask.patterns ?? []).join(", ")} — allow it?` };
 }
 
 export interface QuestionDecision {
@@ -192,26 +192,26 @@ export async function decideQuestion(
   const qs = ask.questions
     .map((q, i) => {
       let s = `${i + 1}. ${q.question}`;
-      if (q.options?.length) s += ` [seçenekler: ${q.options.map((o) => o.label).join(", ")}]`;
+      if (q.options?.length) s += ` [options: ${q.options.map((o) => o.label).join(", ")}]`;
       return s;
     })
     .join("\n");
 
   const prompt = [
-    "Sen bir görev orkestratörüsün. Bir kodlama ajanı kullanıcıya soru yöneltti. Cevabı biliyorsan cevapla, bilmiyorsan kullanıcıya ilet (escalate).",
+    "You are a task orchestrator. A coding agent asked the user a question. Answer it if you know the answer, otherwise relay it to the user (escalate).",
     "",
-    `Orijinal görev: ${ctx.task}`,
-    `Mevcut adım: ${step.id}${step.name ? " — " + step.name : ""}`,
-    "Ajanın soruları:",
+    `Original task: ${ctx.task}`,
+    `Current step: ${step.id}${step.name ? " — " + step.name : ""}`,
+    "The agent's questions:",
     qs,
     "",
-    "Sadece şu JSON'u döndür (araç kullanma):",
-    JSON.stringify({ answers: ["soru1 cevabı", "soru2 cevabı"], reason: "kısa gerekçe" }),
-    'ya da: {"escalate": true}',
+    "Return only this JSON (use no tools):",
+    JSON.stringify({ answers: ["answer to question 1", "answer to question 2"], reason: "short reason" }),
+    'or: {"escalate": true}',
     "",
-    "Kurallar:",
-    "- Her soru için bir cevap (answers dizisi, sırayla).",
-    "- Cevaplardan emin değilsen escalate et; uydurma cevap yazma.",
+    "Rules:",
+    "- One answer per question (answers array, in order).",
+    "- If unsure about the answers, escalate; don't make up answers.",
   ].join("\n");
 
   const result = await runAgent(decisionAgentOpts(cfg, ctx, prompt));

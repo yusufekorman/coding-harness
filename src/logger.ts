@@ -43,9 +43,9 @@ function humanLine(evt: RunEvent): string {
     case "decision":
       return `  orchestrator: ${evt.action}${evt.reason ? ` (${evt.reason})` : ""}`;
     case "question":
-      return `  SORU: ${redact(evt.message)}`;
+      return `  QUESTION: ${redact(evt.message)}`;
     case "progress":
-      return `  -> context güncellendi (${Object.keys(evt.values).length} anahtar)`;
+      return `  -> context updated (${Object.keys(evt.values).length} keys)`;
     case "end":
       return "\n# run end";
     case "error":

@@ -52,9 +52,9 @@ let totalTokens = 0;
 
 function workflowItems(): PickerItem[] {
   return [
-    { label: "FIX", desc: "Hatayı teşhis et, düzelt, doğrula, raporla" },
-    { label: "FEATURE", desc: "Yeni özelliği uçtan uca geliştir" },
-    { label: "ASK", desc: "Salt okunur araştırma ve cevap" },
+    { label: "FIX", desc: "Diagnose the bug, fix it, verify, report" },
+    { label: "FEATURE", desc: "Develop a new feature end to end" },
+    { label: "ASK", desc: "Read-only research and answer" },
   ];
 }
 
@@ -89,19 +89,19 @@ function pickerContent(c: string[]): void {
     c.push(`  ${marker} ${label}   ${term.dim(it.desc)}`);
   });
   c.push("");
-  c.push(term.dim("↑/↓ seç · Enter onayla · q/esc çıkış"));
+  c.push(term.dim("↑/↓ select · Enter confirm · q/esc quit"));
 }
 
 function taskContent(c: string[], w: number): void {
-  c.push(term.bold("Görev"));
-  c.push(term.dim(`çalışma dizini: ${workdir}`));
+  c.push(term.bold("Task"));
+  c.push(term.dim(`working directory: ${workdir}`));
   c.push("");
   const limit = Math.max(10, w - 6);
   let shown = taskInput;
   if (shown.length > limit) shown = "…" + shown.slice(-(limit - 1));
   c.push("  " + shown + (term.COLOR ? term.cyan("▌") : "|"));
   c.push("");
-  c.push(term.dim("Enter çalıştır · q/esc çıkış"));
+  c.push(term.dim("Enter run · q/esc quit"));
 }
 
 function runContent(c: string[], w: number, h: number): void {
@@ -128,7 +128,7 @@ function runContent(c: string[], w: number, h: number): void {
 
   if (promptText) {
     for (const l of wrap(mdToText(promptText), w - 4)) {
-      c.push(term.bold(term.yellow("SORU: ")) + l);
+      c.push(term.bold(term.yellow("QUESTION: ")) + l);
     }
     c.push("> " + term.cutVisible(promptValue, w - 4) + (term.COLOR ? term.cyan("▌") : "|"));
   } else {
@@ -137,28 +137,28 @@ function runContent(c: string[], w: number, h: number): void {
     const flat: string[] = [];
     for (const l of log.slice(-200)) flat.push(...wrap(mdToText(l), w - 4));
     for (const l of flat.slice(-budget)) c.push(term.gray(l));
-    c.push(term.dim("q çıkış · çıktı canlı akar"));
+    c.push(term.dim("q quit · output streams live"));
   }
 }
 
 function summaryContent(c: string[], w: number, h: number): void {
-  c.push(term.bold("Tamamlandı"));
+  c.push(term.bold("Completed"));
   if (totalCost > 0) {
-    c.push(term.dim(`toplam maliyet: $${totalCost.toFixed(4)}${totalTokens ? ` · ${totalTokens} token` : ""}`));
+    c.push(term.dim(`total cost: $${totalCost.toFixed(4)}${totalTokens ? ` · ${totalTokens} tokens` : ""}`));
   }
   c.push("");
   const budget = Math.max(1, h - 6 - (totalCost > 0 ? 1 : 0));
   for (const l of wrap(mdToText(summaryText), w - 4).slice(0, budget)) c.push(l);
   c.push("");
-  c.push(term.dim("Enter/q çıkış"));
+  c.push(term.dim("Enter/q quit"));
 }
 
 function errorContent(c: string[]): void {
-  c.push(term.bold(term.red("Durduruldu")));
+  c.push(term.bold(term.red("Stopped")));
   c.push("");
   c.push(errorText);
   c.push("");
-  c.push(term.dim("Enter/q çıkış"));
+  c.push(term.dim("Enter/q quit"));
 }
 
 function draw(): void {
@@ -203,7 +203,7 @@ async function pick(title: string, items: PickerItem[]): Promise<number> {
     } else if (k.type === "enter") {
       return sel;
     } else if (k.type === "esc" || k.type === "ctrl-c" || (k.type === "char" && k.char === "q")) {
-      throw new AbortError("iptal");
+      throw new AbortError("cancelled");
     }
   }
 }
@@ -224,7 +224,7 @@ async function inputTask(): Promise<string> {
       taskInput += k.char;
       draw();
     } else if (k.type === "esc" || k.type === "ctrl-c") {
-      throw new AbortError("iptal");
+      throw new AbortError("cancelled");
     }
   }
 }
@@ -307,7 +307,7 @@ const hooks: RunHooks = {
     draw();
   },
   onStepEnd: (step, result) => {
-    if (quitRequested) throw new AbortError("kullanıcı iptal etti");
+    if (quitRequested) throw new AbortError("user cancelled");
     if (runningIdx >= 0) stepStates[runningIdx].status = result.ok ? "done" : "failed";
     if (result.interruption) logLine(`⚠ ${result.interruption.kind}: ${result.interruption.message}`);
     draw();
@@ -342,7 +342,7 @@ const hooks: RunHooks = {
 
 export async function runTui(workdirArg: string, preselectEffort?: Effort): Promise<void> {
   if (!stdout.isTTY || !stdin.isTTY) {
-    throw new Error("TUI bir terminal gerektirir (stdout/stdin TTY değil)");
+    throw new Error("TUI requires a terminal (stdout/stdin is not a TTY)");
   }
 
   const root = resolve(import.meta.dir, "..", "..");
@@ -382,7 +382,7 @@ export async function runTui(workdirArg: string, preselectEffort?: Effort): Prom
 
     phase = "task";
     const t = await inputTask();
-    if (!t) throw new AbortError("görev boş");
+    if (!t) throw new AbortError("task is empty");
 
     phase = "run";
     stepStates = workflow.steps.map((s) => ({ step: s, status: "pending" as const }));
@@ -420,9 +420,9 @@ export async function runTui(workdirArg: string, preselectEffort?: Effort): Prom
       runLogger = null;
     }
     if (err instanceof AbortError) {
-      errorText = `İptal: ${err.message}`;
+      errorText = `Cancelled: ${err.message}`;
     } else {
-      errorText = `Hata: ${err instanceof Error ? err.message : String(err)}`;
+      errorText = `Error: ${err instanceof Error ? err.message : String(err)}`;
     }
     phase = "error";
     draw();

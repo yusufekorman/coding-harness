@@ -56,7 +56,7 @@ export async function runOpencode(opts: AgentOptions): Promise<AgentResult> {
       permission: ruleset as never,
     });
     if (!created.data) {
-      throw new Error(`opencode session oluşturulamadı: ${JSON.stringify(created.error ?? {})}`);
+      throw new Error(`could not create opencode session: ${JSON.stringify(created.error ?? {})}`);
     }
     sessionID = created.data.id;
 

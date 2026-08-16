@@ -7,7 +7,7 @@ export interface RunState {
   task: string;
   effort: Effort;
   workdir: string;
-  /** bir sonraki adımın indeksi (0 tabanlı) — tamamlanan adım sayısı */
+  /** index of the next step (0-based) — i.e. the number of completed steps */
   stepIndex: number;
   values: Record<string, string>;
 }

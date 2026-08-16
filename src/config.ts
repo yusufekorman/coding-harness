@@ -54,7 +54,7 @@ export async function loadConfig(root: string): Promise<HarnessConfig> {
 
   const errors = validateConfig(cfg);
   if (errors.length) {
-    throw new Error(`config.yaml geçersiz:\n- ${errors.join("\n- ")}`);
+    throw new Error(`invalid config.yaml:\n- ${errors.join("\n- ")}`);
   }
   return cfg;
 }
@@ -62,33 +62,33 @@ export async function loadConfig(root: string): Promise<HarnessConfig> {
 export function validateConfig(cfg: HarnessConfig): string[] {
   const errors: string[] = [];
   if (cfg.defaultEffort && !EFFORTS.includes(cfg.defaultEffort)) {
-    errors.push(`defaultEffort geçersiz: ${cfg.defaultEffort} (${EFFORTS.join("|")})`);
+    errors.push(`invalid defaultEffort: ${cfg.defaultEffort} (${EFFORTS.join("|")})`);
   }
   for (const e of EFFORTS) {
     const bucket = cfg.efforts[e];
     if (!bucket) {
-      errors.push(`efforts.${e} eksik`);
+      errors.push(`efforts.${e} is missing`);
       continue;
     }
     for (const r of ROLES) {
       const res = bucket[r] as RoleResolution | undefined;
       if (!res || typeof res !== "object") {
-        errors.push(`efforts.${e}.${r} eksik`);
+        errors.push(`efforts.${e}.${r} is missing`);
         continue;
       }
       if (!TOOLS.includes(res.tool as (typeof TOOLS)[number])) {
-        errors.push(`efforts.${e}.${r}.tool geçersiz: ${res.tool} (${TOOLS.join("|")})`);
+        errors.push(`invalid efforts.${e}.${r}.tool: ${res.tool} (${TOOLS.join("|")})`);
       }
       if (!res.model || !res.model.trim()) {
-        errors.push(`efforts.${e}.${r}.model boş`);
+        errors.push(`efforts.${e}.${r}.model is empty`);
       }
     }
   }
   if (typeof cfg.maxRetries !== "number" || cfg.maxRetries < 0) {
-    errors.push(`maxRetries sayı olmalı (>= 0)`);
+    errors.push(`maxRetries must be a number (>= 0)`);
   }
   if (typeof cfg.maxTransientRetries !== "number" || cfg.maxTransientRetries < 0) {
-    errors.push(`maxTransientRetries sayı olmalı (>= 0)`);
+    errors.push(`maxTransientRetries must be a number (>= 0)`);
   }
   return errors;
 }

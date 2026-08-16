@@ -11,7 +11,7 @@ export function isProtectedDir(workdir: string, protectedDirs: string[]): boolea
   for (const raw of protectedDirs) {
     const p = resolve(expand(raw));
     if (!p) continue;
-    // $HOME/~ yalnızca birebir eşleşmede korunur; alt proje dizinleri (örn. ~/Projects/...) serbesttir
+    // $HOME/~ is only protected on an exact match; subproject directories (e.g. ~/Projects/...) remain free
     const exactOnly = raw === "$HOME" || raw === "~";
     if (exactOnly ? wd === p : wd === p || wd.startsWith(p + sep)) return true;
   }
@@ -35,8 +35,8 @@ export function assertSafeWorkdir(
   const dirs = cfg.safety?.protectedDirs ?? [];
   if (isProtectedDir(workdir, dirs)) {
     throw new Error(
-      `güvenlik: ${workdir} korumalı bir dizin içinde; yazma yetkili "${step.id}" adımı reddedildi. ` +
-        `İzin vermek için config.yaml'da safety.protectedDirs'i düzenle.`,
+      `safety: ${workdir} is inside a protected directory; the write-capable step "${step.id}" was refused. ` +
+        `To allow it, edit safety.protectedDirs in config.yaml.`,
     );
   }
 }

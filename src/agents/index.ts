@@ -6,7 +6,7 @@ import { runClaude } from "./claude";
 export async function runAgent(opts: AgentOptions): Promise<AgentResult> {
   if (opts.tool === "opencode") return runOpencode(opts);
   if (opts.tool === "claude") return runClaude(opts);
-  throw new Error(`Bilinmeyen tool: ${opts.tool}`);
+  throw new Error(`Unknown tool: ${opts.tool}`);
 }
 
 export async function closeAgents(): Promise<void> {

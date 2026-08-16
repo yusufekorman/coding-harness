@@ -59,7 +59,7 @@ export async function runClaude(opts: AgentOptions): Promise<AgentResult> {
     }
   };
 
-  // ilk kullanıcı mesajını stdin'e yaz (argv değil)
+  // write the first user message to stdin (not argv)
   writeStdin({ type: "user", message: { role: "user", content: opts.prompt } });
 
   let resultText = "";

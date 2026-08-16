@@ -23,38 +23,38 @@ export async function loadWorkflow(root: string, id: string): Promise<Workflow> 
     }
   }
   if (!found) {
-    throw new Error(`Workflow bulunamadı: "${id}" (arandı: ${candidates.join(", ")})`);
+    throw new Error(`Workflow not found: "${id}" (searched: ${candidates.join(", ")})`);
   }
   return validate(parseYaml(raw) as Record<string, unknown> | null, found);
 }
 
 function validate(data: Record<string, unknown> | null, source: string): Workflow {
-  if (!data || typeof data !== "object") throw new Error(`Geçersiz workflow: ${source}`);
-  if (!data.id) throw new Error(`Workflow.id gerekli: ${source}`);
+  if (!data || typeof data !== "object") throw new Error(`Invalid workflow: ${source}`);
+  if (!data.id) throw new Error(`Workflow.id is required: ${source}`);
   if (!Array.isArray(data.steps) || data.steps.length === 0) {
-    throw new Error(`Workflow.steps boş: ${source}`);
+    throw new Error(`Workflow.steps is empty: ${source}`);
   }
 
   const steps: Step[] = data.steps.map((rawStep, i) => {
     const s = rawStep as Record<string, unknown>;
-    if (!s.id) throw new Error(`${source}: steps[${i}].id gerekli`);
+    if (!s.id) throw new Error(`${source}: steps[${i}].id is required`);
     if (typeof s.prompt !== "string" || !s.prompt.trim()) {
-      throw new Error(`${source}: steps[${i}].prompt gerekli`);
+      throw new Error(`${source}: steps[${i}].prompt is required`);
     }
     const role = s.role as Role | undefined;
     if (role && !ROLES.includes(role)) {
-      throw new Error(`${source}: steps[${i}].role geçersiz: ${role}`);
+      throw new Error(`${source}: invalid steps[${i}].role: ${role}`);
     }
     const tool = s.tool as Tool | undefined;
     if (tool && !TOOLS.includes(tool)) {
-      throw new Error(`${source}: steps[${i}].tool geçersiz: ${tool}`);
+      throw new Error(`${source}: invalid steps[${i}].tool: ${tool}`);
     }
     const permission = typeof s.permission === "string" ? s.permission : undefined;
     if (permission && !PERMISSIONS.includes(permission)) {
-      throw new Error(`${source}: steps[${i}].permission geçersiz: ${permission}`);
+      throw new Error(`${source}: invalid steps[${i}].permission: ${permission}`);
     }
     if (typeof s.prompt === "string" && s.prompt.length > 100_000) {
-      throw new Error(`${source}: steps[${i}].prompt çok uzun`);
+      throw new Error(`${source}: steps[${i}].prompt is too long`);
     }
     return {
       id: String(s.id),
