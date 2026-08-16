@@ -1,0 +1,25 @@
+id: ASK
+name: Araştırma / Soru
+description: Salt okunur araştırma yap ve soruyu yanıtla.
+
+steps:
+  - id: research
+    name: Araştırma
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Çalışma dizini: {{workdir}}
+
+      Bu soruyu yanıtlamak için kod tabanını ve (gerekirse) dokümantasyonu araştır.
+      Hiçbir dosyayı değiştirme.
+
+  - id: answer
+    name: Cevap
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Bulgular: {{context.research}}
+
+      Yukarıdaki bulgulara dayanarak kullanıcıya net ve kapsamlı bir cevap yaz.

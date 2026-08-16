@@ -1,0 +1,62 @@
+id: FIX
+name: Bug Fix
+description: Bir hatayı teşhis et, düzelt, doğrula ve raporla.
+
+steps:
+  - id: understand
+    name: Hatanın anlaşılması
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Çalışma dizini: {{workdir}}
+
+      Bu hatayı anla. Kod tabanını incele (salt okunur), hatayı yeniden üretmek için
+      gereken bağlamı topla. Kök nedeni olabildiğince somut biçimde açıkla.
+      Henüz hiçbir dosyayı değiştirme.
+
+  - id: plan
+    name: Düzeltme planı
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Analiz: {{context.understand}}
+
+      Yukarıdaki analize dayanarak düzeltme için kısa ve somut bir plan yaz.
+      Hangi dosyalar değişecek, nasıl değişecek, hangi testler çalıştırılacak.
+      Kod yazma, sadece planla.
+
+  - id: implement
+    name: Düzeltmeyi uygula
+    role: coder
+    auto: true
+    prompt: |
+      Görev: {{task}}
+      Analiz: {{context.understand}}
+      Plan: {{context.plan}}
+
+      Düzeltmeyi uygula. Planı takip et, minimal ve odaklı değişiklikler yap.
+      İş bittiğinde yaptıklarını özetle.
+
+  - id: verify
+    name: Doğrulama
+    role: coder
+    auto: true
+    prompt: |
+      Görev: {{task}}
+      Yapılan değişiklikler: {{context.implement}}
+
+      Değişiklikleri doğrula: ilgili testleri çalıştır, lint/typecheck yap.
+      Başarılı mı başarısız mı, somut komut çıktılarıyla bildir.
+
+  - id: report
+    name: Rapor
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Yapılanlar: {{context.implement}}
+      Doğrulama: {{context.verify}}
+
+      Yapılan değişikliklerin kısa ve net bir özetini yaz (kullanıcıya iletilecek).

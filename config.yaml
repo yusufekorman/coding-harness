@@ -1,0 +1,73 @@
+# Rol -> model -> effort çözümleme matrisi.
+# role: orchestrator (karar), architect (mimari/UI), coder (kod yazma)
+# tool: opencode | claude
+# claude için: effort  -> --effort (low|medium|high|xhigh|max)
+# opencode için: variant -> --variant (minimal|low|medium|high|max)
+
+defaultEffort: medium
+maxRetries: 3
+maxTransientRetries: 3
+transientBackoffMs: 2000
+
+safety:
+  # false: tüm izin kategorileri "ask" olur (hiçbir şey otomatik onaylanmaz)
+  autoApprove: true
+  # yazma yetkili adımların çalışması engellenen dizinler ($HOME yalnızca birebir eşleşmede korunur)
+  protectedDirs:
+    - $HOME
+    - /
+    - /etc
+    - /usr
+    - /bin
+    - /boot
+    - /dev
+    - /lib
+    - /proc
+    - /sys
+
+# opencode kategori bazlı izin politikası: allow (otomatik) | ask (orkestratör/kullanıcı) | deny
+permissions:
+  read: allow
+  edit: allow
+  grep: allow
+  glob: allow
+  list: allow
+  lsp: allow
+  webfetch: allow
+  websearch: allow
+  codesearch: allow
+  bash: ask
+  task: allow
+  external_directory: ask
+  todowrite: ask
+  doom_loop: deny
+  question: ask
+
+efforts:
+  medium:
+    orchestrator:
+      tool: opencode
+      model: opencode-go/deepseek-v4-flash
+      variant: medium
+    architect:
+      tool: claude
+      model: sonnet
+      effort: high
+    coder:
+      tool: opencode
+      model: opencode-go/deepseek-v4-pro
+      variant: medium
+
+  high:
+    orchestrator:
+      tool: opencode
+      model: opencode-go/deepseek-v4-flash
+      variant: high
+    architect:
+      tool: claude
+      model: opus
+      effort: medium
+    coder:
+      tool: opencode
+      model: opencode-go/deepseek-v4-pro
+      variant: high

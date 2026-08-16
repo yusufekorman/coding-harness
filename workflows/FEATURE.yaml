@@ -1,0 +1,81 @@
+id: FEATURE
+name: Yeni Özellik
+description: Bir özelliği gereksinimlerden teslimata kadar uçtan uca geliştir.
+
+steps:
+  - id: clarify
+    name: Gereksinimlerin netleştirilmesi
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Çalışma dizini: {{workdir}}
+
+      Bu özelliğin gereksinimlerini netleştir. Kod tabanını incele (salt okunur),
+      belirsizlikleri ve tasarım kararlarını listele. Henüz kod yazma.
+
+  - id: design
+    name: Tasarım
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Gereksinimler: {{context.clarify}}
+
+      Yukarıdaki gereksinimlere dayanarak özelliğin tasarımını yap.
+      Mimari kararları, veri modelini ve arayüz/UI yaklaşımını (varsa) somut biçimde yaz.
+
+  - id: plan
+    name: Uygulama planı
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Tasarım: {{context.design}}
+
+      Özelliği uygulamak için adım adım bir plan yaz.
+      Hangi dosyalar oluşturulacak/değiştirilecek, sırası ne olacak.
+
+  - id: implement
+    name: Uygulama
+    role: coder
+    auto: true
+    prompt: |
+      Görev: {{task}}
+      Tasarım: {{context.design}}
+      Plan: {{context.plan}}
+
+      Özelliği uygula. Planı takip et. İş bittiğinde yaptıklarını özetle.
+
+  - id: test
+    name: Test yazımı
+    role: coder
+    auto: true
+    prompt: |
+      Görev: {{task}}
+      Yapılanlar: {{context.implement}}
+
+      Yeni özellik için gerekli testleri yaz. Mevcut test konvansiyonlarını takip et.
+
+  - id: verify
+    name: Doğrulama
+    role: coder
+    auto: true
+    prompt: |
+      Görev: {{task}}
+      Yapılanlar: {{context.implement}}
+      Testler: {{context.test}}
+
+      Tüm testleri çalıştır, lint/typecheck/build yap.
+      Başarılı mı başarısız mı, somut komut çıktılarıyla bildir.
+
+  - id: report
+    name: Rapor
+    role: architect
+    permission: plan
+    prompt: |
+      Görev: {{task}}
+      Yapılanlar: {{context.implement}}
+      Doğrulama: {{context.verify}}
+
+      Teslim edilen özelliğin kısa ve net bir özetini yaz (kullanıcıya iletilecek).
