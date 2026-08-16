@@ -1,5 +1,5 @@
 export type Role = "orchestrator" | "architect" | "coder";
-export type Tool = "opencode" | "claude";
+export type Tool = "opencode" | "claude" | "antigravity";
 export type Effort = "medium" | "high";
 
 export interface RoleResolution {

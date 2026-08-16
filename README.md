@@ -1,7 +1,10 @@
 # Coding Harness
 
-An orchestrator that runs `opencode` and `claude` (Claude Code) headless in the
-background and executes your own workflows step by step.
+An orchestrator that runs `opencode`, `claude` (Claude Code), and `antigravity`
+(`agy`) headless in the background and executes your own workflows step by step.
+
+> **Writing your own workflows?** See [`SKILL.md`](./SKILL.md) for the full
+> authoring guide (workflow format, roles, tools, `config.yaml`, permissions).
 
 You only say which workflow to use: `FIX`, `FEATURE`, or `ASK`. When a step hits an
 interruption (error / permission denied / question), the **orchestrator LLM** decides
@@ -13,6 +16,19 @@ first; if it cannot decide, it escalates to you.
 bun install
 ln -s "$PWD/src/index.ts" ~/.local/bin/harness   # global command (must be on PATH)
 ```
+
+### Prerequisites
+
+Each agent CLI is optional — only the tools your `config.yaml` actually references
+are needed. The ones you use must be installed, authenticated, and on `PATH`:
+
+- `opencode` — `opencode --version`
+- `claude` — `claude --version` (signed in to Claude Code)
+- `agy` — `agy --version` (run `agy` interactively once and sign in — headless
+  mode reuses those cached credentials and otherwise exits with
+  `authentication required`)
+
+Validate everything in one shot with `harness --doctor`.
 
 ## Usage
 
@@ -63,7 +79,9 @@ harness ASK "which auth method does this project use?"
 
 Freely editable via `config.yaml`. For `claude`, write aliases like `sonnet`/`opus`
 in the model field; for `opencode`, write `provider/model` (listed with
-`opencode models`).
+`opencode models`); for `antigravity`, write a **slug** from `agy models`
+(e.g. `gemini-3.7-flash-high`, `claude-sonnet-4-6`). See `SKILL.md` for the
+complete reference.
 
 The shipped `config.yaml` is only the **default** — you decide which tools and
 models are used, or not used:
@@ -74,6 +92,10 @@ models are used, or not used:
   because you don't need one).
 - The same applies to `opencode`: nothing forces it — every role is freely
   editable.
+- The same applies to `antigravity`: roles mapped to `tool: antigravity` only
+  run the `agy` CLI if it is installed (install from https://antigravity.google,
+  verify with `agy --version`). Its write/`auto` steps auto-approve tools;
+  read/plan steps enforce `permissions` (see below).
 - A workflow's steps reference **roles**, not tools, so changing `config.yaml`
   is enough: you don't have to touch the workflows. You can still override
   `tool`/`model` per step (see below).
@@ -113,9 +135,46 @@ Note: each `efforts` entry (`medium` / `high`) **replaces** that whole bucket.
 If you only override `medium`, the `high` bucket keeps its defaults — so for a
 claude-free setup define both, and vice versa.
 
+## Antigravity (`agy`) notes
+
+`tool: antigravity` runs the Antigravity CLI (`agy`) headlessly. Things to know:
+
+- **Authenticate once.** Run `agy` interactively at least once and sign in —
+  headless mode reuses the cached credentials and exits with
+  `authentication required` if there are none.
+- **Use model slugs.** `model` must be a slug from `agy models`
+  (`gemini-3.7-flash-high`, `gemini-3.1-pro-high`, `claude-sonnet-4-6`, …), not
+  the display name. `harness --doctor` flags unknown slugs.
+- **Reasoning is `effort`, not `variant`.** Set `effort: low|medium|high` on
+  antigravity roles/steps. `variant` is opencode-only and is ignored here.
+
+How permissions resolve for `agy`:
+
+- **Write/`auto` steps** (coder role, or `auto: true`, or a non-`plan`
+  `permission`) run with `--dangerously-skip-permissions` — every tool is
+  auto-approved, including shell commands. That is a fully autonomous coder, so
+  be careful what you point it at.
+- **Read/`plan` steps** (architect/orchestrator) run in `--mode plan` and enforce
+  `config.yaml → permissions`: `allow`/`deny` deterministically, `ask` resolved
+  live by the orchestrator (or you) via a `PreToolUse` hook.
+
+To enforce that policy, the harness installs (once, idempotently) a hook at
+`~/.gemini/antigravity-cli/hooks.json`. It merges with any hooks you already have
+and is inert outside a harness run, so normal interactive `agy` use is
+unaffected. If that file can't be written, `agy` still runs but falls back to its
+own defaults (shell commands are soft-denied in headless mode).
+
+Known limitations of headless `agy`:
+
+- **No live question backchannel.** If the agent needs to ask you something, it's
+  resolved through the orchestrator `answer`/`escalate` loop (a step re-run)
+  rather than a live pause like claude/opencode.
+- **No USD cost.** `costUsd` is empty; token counts are still captured.
+- opencode-only permission categories (`doom_loop`, …) have no `agy` equivalent.
+
 ## Workflow file format
 
-`workflows/<ID>.yaml`:
+`workflows/<ID>.yaml` (full authoring guide: `SKILL.md`):
 
 ```yaml
 id: FIX
@@ -150,8 +209,8 @@ Step fields:
     prompt: |
       Task: {{task}}
   ```
-- `permission`: claude permission-mode (per step; default: coder→`acceptEdits`, others→`plan`)
-- `auto`: `--auto` for opencode (default: `true` for opencode + coder role)
+- `permission`: claude permission-mode / antigravity `--mode` (per step; default: coder→`acceptEdits`, others→`plan`)
+- `auto`: `--auto` for opencode; for antigravity → `--dangerously-skip-permissions` (auto-approve all tools)
 - `variant` / `effort`: per-step reasoning override (optional)
 - `prompt`: template; variables `{{task}}`, `{{workdir}}`, `{{effort}}`, `{{context.<stepId>}}`
 - `captures`: the key the step output is stored under in context (default: `id`)
@@ -182,7 +241,7 @@ harness --version           # version
 - `protectedDirs`: directories where write-capable steps are blocked. `$HOME` is only
   protected on an exact match (subproject directories remain free).
 
-`config.yaml` → `permissions` (opencode, per category):
+`config.yaml` → `permissions` (opencode + antigravity, per category):
 
 - `allow` — auto-approve, `ask` — ask orchestrator/user, `deny` — reject.
 - Categories: `read`, `edit`, `bash`, `webfetch`, `external_directory`, `doom_loop`,
@@ -209,3 +268,10 @@ Each run writes the following under `<logdir>/<ts>-<workflow>/`:
   answered live in the same session via `question.reply`/`permission.reply`; the
   permission policy is applied from `config.yaml → permissions`. `variant` (reasoning
   effort) is passed through the SDK.
+- **antigravity** (`agy`, headless print mode + stream-json): text streams via
+  `step_update.text_delta`; `config.yaml → permissions` is enforced by a
+  `PreToolUse` hook the harness installs at `~/.gemini/antigravity-cli/hooks.json`
+  (allow/deny deterministic, `ask` round-tripped live to the orchestrator/user over a
+  Unix socket). Write/`auto` steps run with `--dangerously-skip-permissions`. There is
+  no live question backchannel — questions go through the orchestrator
+  answer/escalate loop.

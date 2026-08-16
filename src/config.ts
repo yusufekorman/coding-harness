@@ -4,7 +4,7 @@ import type { Effort, HarnessConfig, Role, RoleResolution, Step } from "./types"
 export const DEFAULT_EFFORT: Effort = "medium";
 export const EFFORTS: Effort[] = ["medium", "high"];
 export const ROLES: Role[] = ["orchestrator", "architect", "coder"];
-export const TOOLS = ["opencode", "claude"] as const;
+export const TOOLS = ["opencode", "claude", "antigravity"] as const;
 
 const DEFAULT_CONFIG: HarnessConfig = {
   defaultEffort: DEFAULT_EFFORT,

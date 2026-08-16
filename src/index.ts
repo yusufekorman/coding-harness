@@ -16,12 +16,12 @@ import { doctor } from "./doctor";
 const WORKFLOW_IDS = new Set(["FIX", "FEATURE", "ASK"]);
 
 function printHelp(): void {
-  process.stdout.write(`Coding Harness — opencode / Claude Code workflow orchestrator
+  process.stdout.write(`Coding Harness — opencode / Claude Code / Antigravity workflow orchestrator
 
 Usage:
   harness .                          → interactive TUI (runs in the current directory)
   harness <dir>                      → TUI, runs in the specified directory
-  harness <WORKFLOW> "task" [...]    → run headless (FIX | FEATURE | ASK)
+  harness <WORKFLOW> "task" [...]    → run headless (any workflows/<ID>.yaml, e.g. FIX | FEATURE | ASK)
   harness --resume <runId>           → resume from where it left off
   harness --doctor                   → validate environment/config/models
   harness --runs                     → list recent runs

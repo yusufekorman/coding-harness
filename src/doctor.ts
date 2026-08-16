@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { EFFORTS, ROLES, loadConfig } from "./config";
 import { loadWorkflow } from "./workflow";
 import type { HarnessConfig } from "./types";
@@ -20,31 +21,64 @@ async function run(cmd: string[], timeoutMs = 20000): Promise<{ code: number; ou
 
 const CLAUDE_ALIASES = new Set(["sonnet", "opus", "haiku", "fable"]);
 
-function checkModel(tool: string, model: string, opencodeModels: Set<string>): string | null {
+interface ModelSets {
+  opencode: Set<string>;
+  antigravity: Set<string>;
+}
+
+function checkModel(tool: string, model: string, models: ModelSets): string | null {
   if (tool === "opencode") {
-    if (opencodeModels.has(model)) return null;
+    if (models.opencode.has(model)) return null;
     return `opencode model not found: ${model}`;
   }
   if (tool === "claude") {
     if (CLAUDE_ALIASES.has(model) || model.startsWith("claude-")) return null;
     return `unknown claude model alias: ${model} (${[...CLAUDE_ALIASES].join("|")} or claude-*)`;
   }
+  if (tool === "antigravity") {
+    if (models.antigravity.has(model)) return null;
+    return `antigravity model slug not found: ${model} (list with 'agy models')`;
+  }
   return `unknown tool: ${tool}`;
+}
+
+function discoverWorkflows(root: string): string[] {
+  try {
+    const ids = new Set<string>();
+    for (const f of readdirSync(`${root}/workflows`)) {
+      const m = f.match(/^(.+)\.(yaml|yml)$/i);
+      if (m) ids.add(m[1]);
+    }
+    if (ids.size) return [...ids].sort();
+  } catch {
+    /* no workflows dir */
+  }
+  return ["FIX", "FEATURE", "ASK"];
+}
+
+function parseAgyModels(out: string): Set<string> {
+  const slugs = new Set<string>();
+  for (const line of out.split("\n")) {
+    const first = line.trim().split(/\s+/)[0];
+    if (first && /^[a-z][a-z0-9._-]*$/.test(first)) slugs.add(first);
+  }
+  return slugs;
 }
 
 export async function doctor(root: string): Promise<number> {
   const ok: string[] = [];
   const problems: string[] = [];
 
-  let opencodePresent = false;
-  let claudePresent = false;
-  for (const cli of ["opencode", "claude"]) {
+  const present: Record<string, boolean> = {};
+  for (const cli of ["opencode", "claude", "agy"]) {
     const r = await run([cli, "--version"], 15000);
     if (r.code === 0) {
       ok.push(`${cli}: present (${r.out.split("\n")[0]})`);
-      if (cli === "opencode") opencodePresent = true;
-      else claudePresent = true;
-    } else problems.push(`${cli}: could not run (exit ${r.code})`);
+      present[cli] = true;
+    } else {
+      problems.push(`${cli}: could not run (exit ${r.code})`);
+      present[cli] = false;
+    }
   }
 
   let cfg: HarnessConfig | null = null;
@@ -55,7 +89,7 @@ export async function doctor(root: string): Promise<number> {
     problems.push(`config.yaml: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  for (const wf of ["FIX", "FEATURE", "ASK"]) {
+  for (const wf of discoverWorkflows(root)) {
     try {
       await loadWorkflow(root, wf);
       ok.push(`workflow ${wf}: valid`);
@@ -64,34 +98,45 @@ export async function doctor(root: string): Promise<number> {
     }
   }
 
-  const opencodeModels = new Set<string>();
-  const modelsRun = await run(["opencode", "models"], 30000);
-  for (const line of modelsRun.out.split("\n")) {
+  const models: ModelSets = { opencode: new Set(), antigravity: new Set() };
+
+  const opencodeModels = await run(["opencode", "models"], 30000);
+  for (const line of opencodeModels.out.split("\n")) {
     const m = line.trim();
-    if (m) opencodeModels.add(m);
+    if (m) models.opencode.add(m);
+  }
+
+  if (present["agy"]) {
+    const agyModels = await run(["agy", "models"], 30000);
+    models.antigravity = parseAgyModels(agyModels.out);
   }
 
   if (cfg) {
     const seen = new Set<string>();
-    let claudeRoleCount = 0;
+    const toolRoleCount: Record<string, number> = {};
     for (const e of EFFORTS) {
       for (const r of ROLES) {
         const res = cfg.efforts[e][r];
-        if (res.tool === "claude") claudeRoleCount++;
+        toolRoleCount[res.tool] = (toolRoleCount[res.tool] ?? 0) + 1;
         const key = `${res.tool}:${res.model}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        const problem = checkModel(res.tool, res.model ?? "", opencodeModels);
+        const problem = checkModel(res.tool, res.model ?? "", models);
         if (problem) problems.push(`efforts.${e}.${r}: ${problem}`);
         else ok.push(`efforts.${e}.${r}: ${res.tool} ${res.model} OK`);
       }
     }
     const guidance: string[] = [];
-    if (claudeRoleCount && !claudePresent) {
+    if ((toolRoleCount["claude"] ?? 0) && !present["claude"]) {
       guidance.push(
-        `config uses claude for ${claudeRoleCount} role mapping(s) but the 'claude' CLI is not available. ` +
-          `If you don't want to use Claude Code, set the roles you don't need to ` +
-          `tool: opencode in config.yaml (or override per step in the workflow).`,
+        `config uses claude for ${toolRoleCount["claude"]} role mapping(s) but the 'claude' CLI is not available. ` +
+          `Set the roles you don't need to tool: opencode in config.yaml (or override per step in the workflow).`,
+      );
+    }
+    if ((toolRoleCount["antigravity"] ?? 0) && !present["agy"]) {
+      guidance.push(
+        `config uses antigravity for ${toolRoleCount["antigravity"]} role mapping(s) but the 'agy' CLI is not available. ` +
+          `Install it (https://antigravity.google) or point those roles at tool: opencode / claude.`,
       );
     }
     for (const g of guidance) problems.push(g);

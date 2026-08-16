@@ -121,6 +121,7 @@ export async function runWorkflow(
       effort: resolved.effort,
       variant: resolved.variant,
       permission: stepDef.permission ?? defaultPermission(role),
+      auto: stepDef.auto,
       system: stepDef.system,
       prompt,
       workdir: ctx.workdir,

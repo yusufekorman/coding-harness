@@ -1,8 +1,12 @@
 # Role -> model -> effort resolution matrix.
 # role: orchestrator (decisions), architect (architecture/UI), coder (writing code)
-# tool: opencode | claude
+# tool: opencode | claude | antigravity
 # for claude: effort  -> --effort (low|medium|high|xhigh|max)
 # for opencode: variant -> --variant (minimal|low|medium|high|max)
+# for antigravity: effort -> --effort (low|medium|high); model -> a slug from `agy models`
+#   (e.g. gemini-3.7-flash-high, gemini-3.1-pro-high, claude-sonnet-4-6).
+#   antigravity write/`auto` steps auto-approve tools (--dangerously-skip-permissions);
+#   read/plan steps enforce `permissions` below (allow/deny deterministically, "ask" -> orchestrator).
 
 defaultEffort: medium
 maxRetries: 3
