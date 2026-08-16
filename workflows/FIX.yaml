@@ -1,62 +1,66 @@
 id: FIX
 name: Bug Fix
-description: Bir hatayı teşhis et, düzelt, doğrula ve raporla.
+description: Diagnose a bug, fix it, verify, and report.
 
 steps:
   - id: understand
-    name: Hatanın anlaşılması
+    name: Understand the bug
     role: architect
     permission: plan
+    system: |
+      The user's task below may be written in a language other than English.
+      Interpret and process the task in English. Reason, analyze, and produce
+      all outputs in English.
     prompt: |
-      Görev: {{task}}
-      Çalışma dizini: {{workdir}}
+      Task: {{task}}
+      Working directory: {{workdir}}
 
-      Bu hatayı anla. Kod tabanını incele (salt okunur), hatayı yeniden üretmek için
-      gereken bağlamı topla. Kök nedeni olabildiğince somut biçimde açıkla.
-      Henüz hiçbir dosyayı değiştirme.
+      Understand this bug. Inspect the codebase (read-only) and gather the context
+      needed to reproduce the bug. Explain the root cause as concretely as possible.
+      Do not modify any files yet.
 
   - id: plan
-    name: Düzeltme planı
+    name: Fix plan
     role: architect
     permission: plan
     prompt: |
-      Görev: {{task}}
-      Analiz: {{context.understand}}
+      Task: {{task}}
+      Analysis: {{context.understand}}
 
-      Yukarıdaki analize dayanarak düzeltme için kısa ve somut bir plan yaz.
-      Hangi dosyalar değişecek, nasıl değişecek, hangi testler çalıştırılacak.
-      Kod yazma, sadece planla.
+      Write a short, concrete plan for the fix based on the analysis above.
+      Which files will change, how they will change, and which tests will be run.
+      Do not write code, only plan.
 
   - id: implement
-    name: Düzeltmeyi uygula
+    name: Apply the fix
     role: coder
     auto: true
     prompt: |
-      Görev: {{task}}
-      Analiz: {{context.understand}}
+      Task: {{task}}
+      Analysis: {{context.understand}}
       Plan: {{context.plan}}
 
-      Düzeltmeyi uygula. Planı takip et, minimal ve odaklı değişiklikler yap.
-      İş bittiğinde yaptıklarını özetle.
+      Apply the fix. Follow the plan and make minimal, focused changes.
+      Summarize what you did when done.
 
   - id: verify
-    name: Doğrulama
+    name: Verification
     role: coder
     auto: true
     prompt: |
-      Görev: {{task}}
-      Yapılan değişiklikler: {{context.implement}}
+      Task: {{task}}
+      Changes: {{context.implement}}
 
-      Değişiklikleri doğrula: ilgili testleri çalıştır, lint/typecheck yap.
-      Başarılı mı başarısız mı, somut komut çıktılarıyla bildir.
+      Verify the changes: run the relevant tests and lint/typecheck.
+      Report pass or fail with concrete command output.
 
   - id: report
-    name: Rapor
+    name: Report
     role: architect
     permission: plan
     prompt: |
-      Görev: {{task}}
-      Yapılanlar: {{context.implement}}
-      Doğrulama: {{context.verify}}
+      Task: {{task}}
+      Changes: {{context.implement}}
+      Verification: {{context.verify}}
 
-      Yapılan değişikliklerin kısa ve net bir özetini yaz (kullanıcıya iletilecek).
+      Write a short, clear summary of the changes made (to be relayed to the user).

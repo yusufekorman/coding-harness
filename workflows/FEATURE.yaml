@@ -1,81 +1,86 @@
 id: FEATURE
-name: Yeni Özellik
-description: Bir özelliği gereksinimlerden teslimata kadar uçtan uca geliştir.
+name: New Feature
+description: Develop a feature end-to-end, from requirements to delivery.
 
 steps:
   - id: clarify
-    name: Gereksinimlerin netleştirilmesi
+    name: Clarify requirements
     role: architect
     permission: plan
+    system: |
+      The user's task below may be written in a language other than English.
+      Interpret and process the task in English. Reason, analyze, and produce
+      all outputs in English.
     prompt: |
-      Görev: {{task}}
-      Çalışma dizini: {{workdir}}
+      Task: {{task}}
+      Working directory: {{workdir}}
 
-      Bu özelliğin gereksinimlerini netleştir. Kod tabanını incele (salt okunur),
-      belirsizlikleri ve tasarım kararlarını listele. Henüz kod yazma.
+      Clarify the requirements for this feature. Inspect the codebase (read-only),
+      list ambiguities and design decisions. Do not write any code yet.
 
   - id: design
-    name: Tasarım
+    name: Design
     role: architect
     permission: plan
     prompt: |
-      Görev: {{task}}
-      Gereksinimler: {{context.clarify}}
+      Task: {{task}}
+      Requirements: {{context.clarify}}
 
-      Yukarıdaki gereksinimlere dayanarak özelliğin tasarımını yap.
-      Mimari kararları, veri modelini ve arayüz/UI yaklaşımını (varsa) somut biçimde yaz.
+      Design the feature based on the requirements above.
+      Write down the architectural decisions, the data model, and the interface/UI
+      approach (if any) in concrete terms.
 
   - id: plan
-    name: Uygulama planı
+    name: Implementation plan
     role: architect
     permission: plan
     prompt: |
-      Görev: {{task}}
-      Tasarım: {{context.design}}
+      Task: {{task}}
+      Design: {{context.design}}
 
-      Özelliği uygulamak için adım adım bir plan yaz.
-      Hangi dosyalar oluşturulacak/değiştirilecek, sırası ne olacak.
+      Write a step-by-step plan to implement the feature.
+      Which files will be created/modified and in what order.
 
   - id: implement
-    name: Uygulama
+    name: Implementation
     role: coder
     auto: true
     prompt: |
-      Görev: {{task}}
-      Tasarım: {{context.design}}
+      Task: {{task}}
+      Design: {{context.design}}
       Plan: {{context.plan}}
 
-      Özelliği uygula. Planı takip et. İş bittiğinde yaptıklarını özetle.
+      Implement the feature. Follow the plan. Summarize what you did when done.
 
   - id: test
-    name: Test yazımı
+    name: Write tests
     role: coder
     auto: true
     prompt: |
-      Görev: {{task}}
-      Yapılanlar: {{context.implement}}
+      Task: {{task}}
+      Changes: {{context.implement}}
 
-      Yeni özellik için gerekli testleri yaz. Mevcut test konvansiyonlarını takip et.
+      Write the necessary tests for the new feature. Follow the existing test conventions.
 
   - id: verify
-    name: Doğrulama
+    name: Verification
     role: coder
     auto: true
     prompt: |
-      Görev: {{task}}
-      Yapılanlar: {{context.implement}}
-      Testler: {{context.test}}
+      Task: {{task}}
+      Changes: {{context.implement}}
+      Tests: {{context.test}}
 
-      Tüm testleri çalıştır, lint/typecheck/build yap.
-      Başarılı mı başarısız mı, somut komut çıktılarıyla bildir.
+      Run all tests, lint/typecheck/build.
+      Report pass or fail with concrete command output.
 
   - id: report
-    name: Rapor
+    name: Report
     role: architect
     permission: plan
     prompt: |
-      Görev: {{task}}
-      Yapılanlar: {{context.implement}}
-      Doğrulama: {{context.verify}}
+      Task: {{task}}
+      Changes: {{context.implement}}
+      Verification: {{context.verify}}
 
-      Teslim edilen özelliğin kısa ve net bir özetini yaz (kullanıcıya iletilecek).
+      Write a short, clear summary of the delivered feature (to be relayed to the user).

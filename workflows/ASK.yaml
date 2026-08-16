@@ -1,25 +1,29 @@
 id: ASK
-name: Araştırma / Soru
-description: Salt okunur araştırma yap ve soruyu yanıtla.
+name: Research / Question
+description: Perform read-only research and answer the question.
 
 steps:
   - id: research
-    name: Araştırma
+    name: Research
     role: architect
     permission: plan
+    system: |
+      The user's task below may be written in a language other than English.
+      Interpret and process the task in English. Reason, analyze, and produce
+      all outputs in English.
     prompt: |
-      Görev: {{task}}
-      Çalışma dizini: {{workdir}}
+      Task: {{task}}
+      Working directory: {{workdir}}
 
-      Bu soruyu yanıtlamak için kod tabanını ve (gerekirse) dokümantasyonu araştır.
-      Hiçbir dosyayı değiştirme.
+      Research the codebase and (if necessary) the documentation to answer this
+      question. Do not modify any files.
 
   - id: answer
-    name: Cevap
+    name: Answer
     role: architect
     permission: plan
     prompt: |
-      Görev: {{task}}
-      Bulgular: {{context.research}}
+      Task: {{task}}
+      Findings: {{context.research}}
 
-      Yukarıdaki bulgulara dayanarak kullanıcıya net ve kapsamlı bir cevap yaz.
+      Write a clear and comprehensive answer for the user based on the findings above.
